@@ -26,7 +26,12 @@ models/
 *.swp
 *.swo
 
-# 上传的文档（可选：如果不想公开文档内容）
+# 应用 SQLite 数据库
+data/
+*.db
+*.sqlite
+
+# 上传的文档（示例文档保留，用户上传文件不追踪）
 # docs/*.txt
 # docs/*.pdf
 # docs/*.docx

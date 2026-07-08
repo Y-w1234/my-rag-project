@@ -4,7 +4,7 @@ from langchain_community.document_loaders import TextLoader, PyPDFLoader, Docx2t
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
-from langchain_community.llms import Tongyi
+from langchain_community.chat_models import ChatOpenAI
 from langchain.chains import RetrievalQA
 
 load_dotenv()
@@ -124,13 +124,15 @@ def rebuild_vectorstore(docs_dir="./docs", persist_dir="./chroma_db"):
 
 def get_qa_chain(vectorstore):
     """基于向量数据库和大模型创建问答链"""
-    api_key = os.getenv("DASHSCOPE_API_KEY")
+    api_key = os.getenv("DEEPSEEK_API_KEY")
     if not api_key:
-        raise ValueError("请在 .env 文件中配置 DASHSCOPE_API_KEY")
+        raise ValueError("请在 .env 文件中配置 DEEPSEEK_API_KEY")
 
-    llm = Tongyi(
-        model_name="qwen-max",
-        dashscope_api_key=api_key
+    llm = ChatOpenAI(
+        model="deepseek-chat",
+        openai_api_key=api_key,
+        openai_api_base="https://api.deepseek.com",
+        temperature=0,
     )
 
     retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
