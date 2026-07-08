@@ -143,6 +143,13 @@ my-rag-project/
 └── README.md
 ```
 
+## 🔗 相关项目
+
+| 项目 | 说明 |
+|------|------|
+| [🤖 AI 短剧生成平台](https://github.com/Y-w1234/ai-short-drama-platform) | 多 Agent 协作短剧自动生成，含 Demo 视频 |
+| [🎬 短剧流水线（单文件版）](https://github.com/Y-w1234/ai-short-drama-pipeline) | 纯 Python 单文件实现，快速理解核心流程 |
+
 ## 📝 License
 
 MIT
