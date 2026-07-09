@@ -1,9 +1,9 @@
 # 核心 Web 框架
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
+fastapi==0.139.0
+uvicorn[standard]==0.51.0
 python-multipart==0.0.32
 
-# LangChain 生态（更新为兼容版本）
+# LangChain 生态
 langchain==0.1.20
 langchain-community==0.0.38
 langchain-text-splitters==0.0.2
@@ -22,15 +22,17 @@ sentence-transformers==2.7.0
 # 环境变量管理
 python-dotenv==1.0.0
 
-# 关键兼容性依赖
-pydantic==1.10.13
-# langsmith 由 langchain 自动拉取，不需要固定版本
+# 数据验证（已升级到 2.x）
+pydantic==2.13.4
 
 # 模型下载工具（国内用户从 ModelScope 下载 HuggingFace 模型）
 modelscope>=1.0.0
 
 # DeepSeek API（OpenAI 兼容）
 openai>=1.0.0
+
+# 限流
+slowapi>=0.1.9
 
 # 数据库（管理后台）
 sqlalchemy>=2.0.0

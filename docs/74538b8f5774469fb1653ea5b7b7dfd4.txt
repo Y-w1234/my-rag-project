@@ -1,6 +1,0 @@
-新产品规格说明书：型号 XR-5000 Pro
-CPU: Intel i9-14900HX
-内存: 64GB DDR5
-存储: 2TB NVMe SSD
-价格: 15999 元
-保修期: 3年

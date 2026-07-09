@@ -9,7 +9,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
-DATABASE_URL = f"sqlite+aiosqlite:///{DATA_DIR}/app.db"
+# Windows 上 aiosqlite 不支持绝对路径 URL
+# 使用相对于 CWD 的相对路径
+_db_rel = os.path.join("data", "rag_app.db")
+DATABASE_URL = f"sqlite+aiosqlite:///{_db_rel.replace(os.sep, '/')}"
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

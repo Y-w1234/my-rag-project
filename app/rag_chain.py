@@ -30,6 +30,7 @@ else:
 # 安全加固 — System Prompt 防注入
 # ══════════════════════════════════════════════════════════════
 SECURITY_SYSTEM_PROMPT = PromptTemplate(
+    input_variables=["context", "question"],
     template="""你是公司的私有文档问答助手。严格遵守以下安全规则：
 
 ## 核心规则
