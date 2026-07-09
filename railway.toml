@@ -1,0 +1,18 @@
+# ── Railway 部署配置 ──────────────────────────────────────
+# 用法：在 Railway 上 New Project → Deploy from GitHub Repo
+# Railway 会自动读取此文件
+
+[build]
+  builder = "DOCKERFILE"
+  dockerfilePath = "./Dockerfile"
+
+[deploy]
+  startCommand = "python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+  healthcheckPath = "/"
+  healthcheckTimeout = 10
+  restartPolicyType = "ALWAYS"
+
+# 环境变量在 Railway Dashboard → Variables 中设置：
+#   DEEPSEEK_API_KEY  = sk-xxxxx
+#   ADMIN_API_KEY     = 自定义管理密钥
+#   PORT              = 8888 (Railway 自动注入)

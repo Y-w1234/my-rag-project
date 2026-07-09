@@ -1,0 +1,28 @@
+# ── my-rag-project Docker Compose 配置 ────────────────────
+# 用法：docker compose up -d
+
+services:
+  rag:
+    build: .
+    container_name: my-rag-project
+    ports:
+      - "8888:8888"
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - ADMIN_API_KEY=${ADMIN_API_KEY:-admin-secret-key-change-me}
+    volumes:
+      # 持久化存储：向量库 + 上传文档 + SQLite 数据
+      - ./chroma_db:/app/chroma_db
+      - ./docs:/app/docs
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+# 说明：
+# 1. 复制 .env.example 为 .env 并填入真实 API Key
+# 2. docker compose up -d 一键启动
+# 3. 浏览器打开 http://localhost:8888/docs 测试 API

@@ -126,6 +126,47 @@ python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8888
 | 数据库 | SQLite + SQLAlchemy 2.0 + aiosqlite | — |
 | 模型下载 | ModelScope（国内可用） | ≥1.0.0 |
 
+## 🚀 部署上线
+
+### 方式一：Docker Compose（推荐，5分钟上线）
+
+```bash
+# 1. 配置 API Key
+cp .env.example .env
+# 编辑 .env，填入 DEEPSEEK_API_KEY=sk-xxxxx
+
+# 2. 一键启动
+docker compose up -d
+
+# 3. 验证
+curl http://localhost:8888/
+# → {"status":"running","message":"私有文档智能问答系统"}
+
+# 4. 浏览器打开 Swagger 文档
+# http://localhost:8888/docs
+```
+
+### 方式二：Railway 云部署（免费额度）
+
+1. 访问 [railway.app](https://railway.app)，用 GitHub 登录
+2. 点击 **New Project → Deploy from GitHub Repo**
+3. 选择 `Y-w1234/my-rag-project`
+4. 在 Variables 中添加：
+   - `DEEPSEEK_API_KEY` = `sk-你的key`
+   - `ADMIN_API_KEY` = `自定义管理密码`
+5. Railway 自动读取 `Dockerfile` 和 `railway.toml`，一键部署
+6. 获得 `xxx.railway.app` 域名
+
+### 方式三：本地开发（裸 Python）
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env  # 编辑填入 API Key
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8888
+```
+
+---
+
 ## 📁 项目结构
 
 ```
@@ -137,9 +178,12 @@ my-rag-project/
 │   ├── database.py        # SQLite 异步引擎 + 会话管理
 │   ├── models.py          # UsageRecord + ErrorLog 数据模型
 │   └── middleware.py       # 请求日志 + 全局异常捕获 + 安全头
-├── docs/                  # 示例文档（RAG 知识库的数据源）
+├── Dockerfile             # 多阶段构建（含模型预下载）
+├── docker-compose.yml     # 一键本地部署
+├── railway.toml           # Railway 云部署配置
+├── docs/                  # 示例文档
 ├── requirements.txt
-├── .env.example           # 环境变量模板（无真实 Key）
+├── .env.example           # 环境变量模板
 └── README.md
 ```
 
