@@ -63,15 +63,23 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"警告: RAG 系统初始化失败: {e}")
         print("请确保: 1) docs/ 目录中有文档  "
-              "2) 模型已下载到 models/  3) .env 中配置了 DASHSCOPE_API_KEY")
+              "2) 模型已下载到 models/  3) .env 中配置了 DEEPSEEK_API_KEY")
     yield
 
 
 # ── App 实例 ────────────────────────────────────────────────
 app = FastAPI(title="私有文档智能问答系统", lifespan=lifespan)
 
-# Rate limiting — 保护公开接口
-limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
+# Rate limiting — 保护公开接口（代理感知 X-Forwarded-For）
+def _get_client_key(request: Request) -> str:
+    """获取真实客户端标识：优先 X-Forwarded-For，回退到直连 IP"""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        # 取最左侧（原始客户端）的 IP
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+limiter = Limiter(key_func=_get_client_key, default_limits=["60/minute"])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -80,8 +88,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 # 注册中间件和全局异常处理
@@ -97,24 +105,19 @@ app.add_exception_handler(Exception, global_exception_handler)
 @app.get("/")
 def root():
     """根路径 — 健康检查"""
-    return {
-        "status": "running",
-        "message": "私有文档智能问答系统",
-        "docs": "http://127.0.0.1:8888/docs",
-    }
+    return {"status": "ok"}
 
 
 @app.get("/ask/")
 @limiter.limit("10/minute")
 async def ask_question(
-    question: str,
     request: Request,
+    question: str = Query(..., min_length=1, max_length=2000),
     db: AsyncSession = Depends(get_db),
 ):
-    """智能问答接口 — 自动记录使用日志"""
+    """智能问答接口 — 自动记录使用日志（输入校验由 Query 参数完成）"""
+    # question 的长度校验由 Query(min_length=1, max_length=2000) 保证
     # RateLimitExceeded 已在 app 级别注册处理
-    if not question:
-        raise HTTPException(status_code=400, detail="问题不能为空")
 
     if rag_chain.qa_chain is None:
         raise HTTPException(status_code=503, detail="RAG 系统尚未初始化，请检查服务启动日志")
@@ -151,8 +154,12 @@ async def ask_question(
 # ══════════════════════════════════════════════════════════════
 
 def _secure_filename(filename: str) -> str:
-    """生成安全文件名：随机 UUID + 保留原始扩展名"""
-    _, ext = os.path.splitext(filename)
+    """生成安全文件名：随机 UUID + 保留原始扩展名（防路径遍历）"""
+    # os.path.basename 防止路径遍历攻击
+    safe_basename = os.path.basename(filename)
+    if not safe_basename or safe_basename != filename:
+        raise HTTPException(status_code=400, detail="文件名包含非法字符")
+    _, ext = os.path.splitext(safe_basename)
     ext = ext.lower()
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="不支持的文件格式")
@@ -173,7 +180,9 @@ def _validate_magic_bytes(content: bytes, filename: str) -> bool:
 
 
 @app.post("/upload/")
+@limiter.limit("10/minute")
 async def upload_file(
+    request: Request,
     file: UploadFile = File(...),
     _admin=Depends(verify_admin_key),
 ):
@@ -191,7 +200,7 @@ async def upload_file(
         raise HTTPException(status_code=400, detail="文件大小不能超过 10 MB")
     if not _validate_magic_bytes(content, file.filename):
         raise HTTPException(status_code=400, detail="文件类型与扩展名不匹配")
-    if file.content_type and file.content_type not in ALLOWED_MIMES:
+    if not file.content_type or file.content_type not in ALLOWED_MIMES:
         raise HTTPException(status_code=400, detail="不支持的文件类型")
 
     safe_name = _secure_filename(file.filename)
@@ -210,7 +219,8 @@ async def upload_file(
 
 
 @app.post("/rebuild/")
-async def rebuild_index(_admin=Depends(verify_admin_key)):
+@limiter.limit("5/minute")
+async def rebuild_index(request: Request, _admin=Depends(verify_admin_key)):
     """手动重建整个向量库（需 Admin Key）"""
     try:
         rag_chain.rebuild_vectorstore()
@@ -224,7 +234,9 @@ async def rebuild_index(_admin=Depends(verify_admin_key)):
 # ══════════════════════════════════════════════════════════════
 
 @app.get("/admin/stats")
+@limiter.limit("30/minute")
 async def admin_stats(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     _admin=Depends(verify_admin_key),
 ):
@@ -260,7 +272,9 @@ async def admin_stats(
 
 
 @app.get("/admin/usage-records")
+@limiter.limit("30/minute")
 async def admin_usage_records(
+    request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     search: str = Query("", max_length=200),
@@ -304,7 +318,9 @@ async def admin_usage_records(
 
 
 @app.get("/admin/error-logs")
+@limiter.limit("30/minute")
 async def admin_error_logs(
+    request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     search: str = Query("", max_length=200),
@@ -353,7 +369,9 @@ async def admin_error_logs(
 
 
 @app.get("/admin/error-logs/{log_id}")
+@limiter.limit("30/minute")
 async def admin_error_log_detail(
+    request: Request,
     log_id: int,
     db: AsyncSession = Depends(get_db),
     _admin=Depends(verify_admin_key),

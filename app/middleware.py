@@ -18,6 +18,17 @@ if not logger.handlers:
     logger.addHandler(handler)
 
 
+def _sanitize_traceback(traceback_text: str | None, max_length: int = 2000) -> str | None:
+    """脱敏处理 traceback：去除内部绝对路径，限制长度"""
+    if not traceback_text:
+        return None
+    import re
+    # 替换 Windows 和 Unix 绝对路径为占位符
+    sanitized = re.sub(r'[A-Za-z]:\\[^\s",]+', '[PROJECT]\\...', traceback_text)
+    sanitized = re.sub(r'/[^\s",]+/([^/\s",]+\.py)', r'[PROJECT]/.../\1', sanitized)
+    return sanitized[:max_length]
+
+
 async def log_request_to_error_log(
     endpoint: str,
     method: str,
@@ -25,14 +36,14 @@ async def log_request_to_error_log(
     traceback_text: str | None = None,
     client_ip: str | None = None,
 ):
-    """将错误写入 ErrorLog 表（异步，不阻塞请求响应）"""
+    """将错误写入 ErrorLog 表（异步，不阻塞请求响应，traceback 脱敏处理）"""
     try:
         async with async_session() as db:
             entry = ErrorLog(
                 endpoint=endpoint,
                 method=method,
                 error_message=str(error_message)[:2000],
-                traceback=traceback_text[:8000] if traceback_text else None,
+                traceback=_sanitize_traceback(traceback_text),
                 client_ip=client_ip,
             )
             db.add(entry)
@@ -93,7 +104,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 async def security_headers_middleware(request: Request, call_next):
-    """为每个响应添加安全头"""
+    """为每个响应添加安全头（企业级配置）"""
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
@@ -101,4 +112,17 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     response.headers["Cache-Control"] = "no-store, max-age=0"
+    # HSTS — 强制 HTTPS（生产环境启用，开发环境注释掉）
+    # response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    # CSP — XSS 最后防线
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
     return response

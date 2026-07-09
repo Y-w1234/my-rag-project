@@ -8,7 +8,7 @@
 
 ### 1.1 项目简介
 
-基于 **LangChain + FastAPI + ChromaDB** 构建的私有化文档智能问答系统（RAG, Retrieval-Augmented Generation）。用户上传自有文档（TXT / PDF / DOCX），系统自动构建本地向量知识库，通过**阿里通义千问（qwen-max）**大模型实现基于文档内容的精准问答。
+基于 **LangChain + FastAPI + ChromaDB** 构建的私有化文档智能问答系统（RAG, Retrieval-Augmented Generation）。用户上传自有文档（TXT / PDF / DOCX），系统自动构建本地向量知识库，通过**DeepSeek**大模型实现基于文档内容的精准问答。
 
 ### 1.2 核心价值
 
@@ -17,7 +17,7 @@
 | **数据安全** | 所有文档本地存储，不上传到第三方平台 |
 | **即传即问** | 文档上传后自动索引，无需重启服务即可查询 |
 | **多格式支持** | .txt / .pdf / .docx 三种常见文档格式 |
-| **国内可用** | 针对网络环境优化，从 ModelScope 下载模型，使用通义千问 API |
+| **国内可用** | 针对网络环境优化，从 ModelScope 下载模型，使用 DeepSeek API |
 
 ### 1.3 技术栈
 
@@ -29,7 +29,7 @@
 | 社区集成 | LangChain-Community | 0.0.38 |
 | 向量数据库 | ChromaDB | 0.4.24 |
 | 文本嵌入模型 | sentence-transformers (paraphrase-multilingual-MiniLM-L12-v2) | 2.7.0 |
-| 大语言模型 | 阿里云通义千问 (qwen-max) | — |
+| 大语言模型 | DeepSeek (deepseek-chat) | — |
 | 文档解析 | PyPDF + python-docx | 3.17.4 / 1.1.0 |
 | 环境变量 | python-dotenv | 1.0.0 |
 | 模型下载 | ModelScope | 1.37.1 |
@@ -79,8 +79,8 @@ my-rag-project/
    ┌────────────────────────────────┐ │
    │       RAG Chain (LangChain)    │◄┘
    │  ┌──────────┐ ┌─────────────┐  │
-   │  │ ChromaDB │ │ 通义千问 LLM │  │
-   │  │ 向量存储  │ │  (qwen-max) │  │
+   │  │ ChromaDB │ │ DeepSeek LLM │  │
+   │  │ 向量存储  │ │  (deepseek-chat) │  │
    │  └──────────┘ └─────────────┘  │
    │  ┌──────────────────────────┐  │
    │  │ Sentence-Transformer     │  │
@@ -120,7 +120,7 @@ curl -F "file=@产品说明书.txt" http://127.0.0.1:8888/upload/
 ### 3.4 `GET /ask/` — 智能问答
 
 - **请求**：Query 参数 `question`
-- **行为**：在向量库中检索 Top-3 相关文本块，拼接为上下文，调用 qwen-max 生成答案
+- **行为**：在向量库中检索 Top-3 相关文本块，拼接为上下文，调用 deepseek-chat 生成答案
 
 ```
 curl --get --data-urlencode "question=神舟T800配置是什么？" http://127.0.0.1:8888/ask/
@@ -187,7 +187,7 @@ def add_document_to_vectorstore(file_path):
 
 ```
 用户问题 → Embedding 向量化 → ChromaDB 相似度检索 (Top-3)
-→ 拼接上下文 Prompt → 通义千问 qwen-max 生成答案 → 返回答案 + 引用来源
+→ 拼接上下文 Prompt → DeepSeek 生成答案 → 返回答案 + 引用来源
 ```
 
 ---
@@ -460,7 +460,7 @@ vs, qa = rag_chain.initialize_rag()
 | 模型来源 | HuggingFace 在线 | ModelScope 离线 | **ModelScope + 本地缓存** | 国内网络不可靠，离线方案更稳定 |
 | 初始化时机 | 模块导入时 | Lifespan 事件 | **Lifespan 事件** | 避免导入即崩溃，启动失败可优雅降级 |
 | 索引策略 | 全量重建 | 增量更新 | **增量更新** | 用户上传后即时可查，无需等待 |
-| LLM 服务 | OpenAI | 通义千问 | **通义千问 (qwen-max)** | 国内 API 稳定、中文理解更优 |
+| LLM 服务 | OpenAI | DeepSeek | **DeepSeek (deepseek-chat)** | 性价比高、中文效果好、兼容 OpenAI 格式 |
 
 ---
 
@@ -479,7 +479,7 @@ python -c "from modelscope import snapshot_download; snapshot_download('sentence
 # 4. 在 docs/ 目录放置要索引的文档
 
 # 5. 配置 API Key（编辑 .env 文件）
-# DASHSCOPE_API_KEY=你的真实Key
+# DEEPSEEK_API_KEY=你的真实Key
 
 # 6. 启动服务
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8888
