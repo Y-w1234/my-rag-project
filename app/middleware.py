@@ -112,8 +112,11 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     response.headers["Cache-Control"] = "no-store, max-age=0"
-    # HSTS — 强制 HTTPS（生产环境启用，开发环境注释掉）
-    # response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    # HSTS — 仅当请求通过 HTTPS 时发送（避免 HTTP 场景下客户端缓存错误）
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
     # CSP — XSS 最后防线
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
