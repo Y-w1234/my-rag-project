@@ -114,15 +114,17 @@ def _validate_document_content(file_path: str) -> list[str]:
     """审查文档内容，返回发现的可疑模式列表。空列表 = 安全"""
     findings = []
     try:
-        # 只对 .txt 做语义审查；.pdf/.docx 需要解析后才能审查
-        if file_path.endswith('.txt'):
-            with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
-                content = f.read(CONTENT_SCAN_MAX_CHARS)
+        # 统一用 load_document 提取文本（支持 txt/pdf/docx）
+        docs = load_document(file_path)
 
-            for pattern in SUSPICIOUS_PATTERNS:
-                matches = re.findall(pattern, content, re.IGNORECASE)
-                for match in matches:
-                    findings.append(f"可疑模式 '{pattern[:60]}...' 匹配到: '{match[:80]}'")
+        # 把所有 page_content 拼成一段文本进行审查
+        scan_content = " ".join([doc.page_content for doc in docs])
+        scan_content = scan_content[:CONTENT_SCAN_MAX_CHARS]
+
+        for pattern in SUSPICIOUS_PATTERNS:
+            matches = re.findall(pattern, scan_content, re.IGNORECASE)
+            for match in matches:
+                findings.append(f"可疑模式 '{pattern[:60]}...' 匹配到: '{match[:80]}'")
     except Exception:  # nosec B110 — 解码失败跳过审查，后续索引阶段自然失败
         pass
     return findings
